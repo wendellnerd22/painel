@@ -689,15 +689,32 @@ function ChatsPage({ store }) {
   );
 }
 
-// ============================================================ Settings (com LAD token e bot ativo)
+// ============================================================ Settings (com LAD token, MP token e bot ativo)
 function SettingsPage({ user, store, loadStores, flash }) {
   const [ladToken, setLadToken] = useState("");
   const [botAtivo, setBotAtivo] = useState(!!store?.bot_ativo);
+  const [mpToken, setMpToken] = useState("");
+  const [mpAmbiente, setMpAmbiente] = useState("producao");
+  const [mpState, setMpState] = useState({ configured: false, ambiente: "producao" });
+  const [pixTest, setPixTest] = useState(null);
+  const [storeDetail, setStoreDetail] = useState(null);
+
+  const loadDetail = useCallback(async () => {
+    if (!store) return;
+    const r = await api.get(`/stores/${store.id}`);
+    setStoreDetail(r.data);
+    const m = await api.get(`/stores/${store.id}/mercadopago`);
+    setMpState(m.data);
+    setMpAmbiente(m.data.ambiente);
+  }, [store]);
 
   useEffect(() => {
     setBotAtivo(!!store?.bot_ativo);
     setLadToken("");
-  }, [store?.id]);
+    setMpToken("");
+    setPixTest(null);
+    loadDetail();
+  }, [store?.id, loadDetail]);
 
   async function saveToken() {
     if (!store) return;
@@ -706,6 +723,7 @@ function SettingsPage({ user, store, loadStores, flash }) {
       flash("Token LAD salvo");
       setLadToken("");
       loadStores();
+      loadDetail();
     } catch (err) {
       flash(err.response?.data?.detail || "Falha ao salvar", "err");
     }
@@ -718,6 +736,41 @@ function SettingsPage({ user, store, loadStores, flash }) {
     await api.patch(`/stores/${store.id}`, { bot_ativo: next });
     flash(next ? "Bot ativado" : "Bot desativado");
     loadStores();
+  }
+
+  async function saveMpToken() {
+    if (!store || !mpToken) return;
+    try {
+      await api.post(`/stores/${store.id}/mercadopago/setup`, { access_token: mpToken, ambiente: mpAmbiente });
+      flash("Access Token Mercado Pago salvo");
+      setMpToken("");
+      loadDetail();
+    } catch (err) {
+      flash(err.response?.data?.detail || "Falha ao salvar token", "err");
+    }
+  }
+
+  async function removeMp() {
+    if (!store) return;
+    if (!window.confirm("Remover o token do Mercado Pago desta loja?")) return;
+    await api.delete(`/stores/${store.id}/mercadopago`);
+    flash("Token Mercado Pago removido");
+    loadDetail();
+  }
+
+  async function testPix() {
+    if (!store) return;
+    try {
+      const r = await api.post(`/stores/${store.id}/mercadopago/pix`, {
+        valor: 1.00,
+        descricao: "Teste ZapPedidos",
+        email_pagador: user.email,
+      });
+      setPixTest(r.data);
+      flash("PIX de teste criado (R$ 1,00)");
+    } catch (err) {
+      flash(err.response?.data?.detail || "Falha ao criar PIX", "err");
+    }
   }
 
   return (
@@ -739,13 +792,63 @@ function SettingsPage({ user, store, loadStores, flash }) {
             <div className="setting-line stacked">
               <div><strong>Token LAD Delivery</strong><small>Usado para sincronizar cardápio e criar pedidos</small></div>
               <div className="inline-form">
-                <input type="password" value={ladToken} onChange={(e) => setLadToken(e.target.value)} placeholder={store.has_lad_token ? "Token configurado · digite para substituir" : "Cole o Bearer token"} data-testid="settings-lad-token" />
+                <input type="password" value={ladToken} onChange={(e) => setLadToken(e.target.value)} placeholder={storeDetail?.has_lad_token ? "Token configurado · digite para substituir" : "Cole o Bearer token"} data-testid="settings-lad-token" />
                 <button className="primary" onClick={saveToken} disabled={!ladToken} data-testid="save-lad-token">Salvar token</button>
               </div>
+            </div>
+            <div className="setting-line stacked mp-block">
+              <div className="mp-header">
+                <div>
+                  <strong>Mercado Pago</strong>
+                  <small>Cadastre seu Access Token para receber pagamentos via PIX e Checkout Pro</small>
+                </div>
+                <span className={`mp-badge ${mpState.configured ? "on" : ""}`} data-testid="mp-badge">
+                  <i />{mpState.configured ? `Configurado · ${mpState.ambiente}` : "Não configurado"}
+                </span>
+              </div>
+              <div className="two-cols">
+                <label>Access Token
+                  <input type="password" value={mpToken} onChange={(e) => setMpToken(e.target.value)} placeholder={mpState.configured ? "Token configurado · digite para substituir" : "APP_USR-... ou TEST-..."} data-testid="mp-token-input" />
+                </label>
+                <label>Ambiente
+                  <select value={mpAmbiente} onChange={(e) => setMpAmbiente(e.target.value)} data-testid="mp-env-select">
+                    <option value="producao">Produção</option>
+                    <option value="teste">Teste (sandbox)</option>
+                  </select>
+                </label>
+              </div>
+              <div className="row-actions">
+                <button className="primary" onClick={saveMpToken} disabled={!mpToken} data-testid="save-mp-token">Salvar token</button>
+                {mpState.configured && (
+                  <>
+                    <button className="ghost" onClick={testPix} data-testid="test-pix-button"><Zap size={14} /> Testar PIX de R$ 1,00</button>
+                    <button className="danger-btn" onClick={removeMp} data-testid="remove-mp-button"><Trash2 size={14} /> Remover</button>
+                  </>
+                )}
+              </div>
+              <small className="mp-hint">
+                Como obter? Mercado Pago → Suas integrações → Aplicação → Credenciais de {mpAmbiente === "producao" ? "produção" : "teste"} → Access Token
+              </small>
+              {pixTest && (
+                <div className="pix-result" data-testid="pix-test-result">
+                  <strong>PIX de teste gerado</strong>
+                  {pixTest.qr_code_base64 && (
+                    <img alt="QR PIX" src={`data:image/png;base64,${pixTest.qr_code_base64}`} className="pix-qr" />
+                  )}
+                  <label>Copia e cola PIX
+                    <input readOnly value={pixTest.copia_e_cola || ""} onFocus={(e) => e.target.select()} />
+                  </label>
+                  <small>Status: <b>{pixTest.status}</b> · Referência: <code>{pixTest.referencia}</code></small>
+                </div>
+              )}
             </div>
             <div className="setting-line">
               <span><strong>Webhook WhatsApp</strong><small>Configure no seu WAHA/Evolution para receber conversas</small></span>
               <code className="webhook-url">{process.env.REACT_APP_BACKEND_URL}/api/webhooks/whatsapp/{store.id}</code>
+            </div>
+            <div className="setting-line">
+              <span><strong>Webhook Mercado Pago</strong><small>Configure no painel MP → Webhooks para receber notificações</small></span>
+              <code className="webhook-url">{process.env.REACT_APP_BACKEND_URL}/api/webhooks/mercadopago/{store.id}</code>
             </div>
           </>
         )}

@@ -9,6 +9,7 @@ from typing import Any, Optional
 import bcrypt
 import httpx
 import jwt
+from cryptography.fernet import Fernet, InvalidToken
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,9 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "zap-pedidos-local-secret-change-me")
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@zappedidos.com")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Zap@2026")
 LAD_BASE_URL = os.environ.get("LAD_BASE_URL", "https://api2.laddelivery.com.br").rstrip("/")
+TOKEN_ENCRYPTION_KEY = os.environ.get("TOKEN_ENCRYPTION_KEY", Fernet.generate_key().decode())
+MP_API_BASE = "https://api.mercadopago.com"
+fernet = Fernet(TOKEN_ENCRYPTION_KEY.encode() if isinstance(TOKEN_ENCRYPTION_KEY, str) else TOKEN_ENCRYPTION_KEY)
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -48,7 +52,7 @@ def clean(doc: Optional[dict[str, Any]]) -> dict[str, Any]:
     if not doc:
         return {}
     doc = dict(doc)
-    for secret in ("_id", "password_hash", "wa_token", "waha_token", "evolution_token", "lad_token"):
+    for secret in ("_id", "password_hash", "wa_token", "waha_token", "evolution_token", "lad_token", "mp_token_enc"):
         doc.pop(secret, None)
     return doc
 
@@ -352,7 +356,7 @@ async def ensure_plan_limit(client_id: str, plano: str):
 
 # ============================================================ endpoints
 
-LEGACY_SECRET_PROJ = {"_id": 0, "wa_token": 0, "lad_token": 0, "waha_token": 0, "evolution_token": 0}
+LEGACY_SECRET_PROJ = {"_id": 0, "wa_token": 0, "lad_token": 0, "waha_token": 0, "evolution_token": 0, "mp_token_enc": 0}
 
 
 @api.get("/")
@@ -465,6 +469,8 @@ async def store_detail(store_id: str, user: dict[str, Any] = Depends(current_use
     # Expose helpful non-secret flags to the UI
     result["has_lad_token"] = bool(store.get("lad_token"))
     result["has_wa_config"] = bool(store.get("wa_url"))
+    result["has_mp_token"] = bool(store.get("mp_token_enc"))
+    result["mp_environment"] = store.get("mp_environment", "producao")
     return result
 
 
@@ -756,6 +762,211 @@ async def list_chats(store_id: str, user: dict[str, Any] = Depends(current_user)
     return list(grouped.values())
 
 
+# ---------------------- Mercado Pago (por loja) ----------------------
+
+class MercadoPagoSetup(BaseModel):
+    access_token: str = Field(min_length=20)
+    ambiente: str = Field(default="producao", pattern="^(producao|teste)$")
+
+
+class MercadoPagoPix(BaseModel):
+    valor: float = Field(gt=0)
+    descricao: str = Field(min_length=1, max_length=250)
+    email_pagador: str
+    referencia_externa: str = ""
+
+
+class MercadoPagoCheckoutItem(BaseModel):
+    titulo: str
+    quantidade: int = Field(gt=0)
+    preco_unitario: float = Field(gt=0)
+
+
+class MercadoPagoCheckout(BaseModel):
+    itens: list[MercadoPagoCheckoutItem]
+    email_pagador: Optional[str] = None
+    referencia_externa: str = ""
+
+
+def mp_token_for(store: dict[str, Any]) -> str:
+    enc = store.get("mp_token_enc")
+    if not enc:
+        raise HTTPException(400, "Cadastre o Access Token do Mercado Pago nas Configurações.")
+    try:
+        return fernet.decrypt(enc.encode()).decode()
+    except InvalidToken as exc:
+        raise HTTPException(500, "Token Mercado Pago corrompido. Cadastre novamente.") from exc
+
+
+async def _mp_post(token: str, path: str, body: dict, idem: Optional[str] = None) -> dict:
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    if idem:
+        headers["X-Idempotency-Key"] = idem
+    async with httpx.AsyncClient(timeout=20) as http:
+        try:
+            r = await http.post(f"{MP_API_BASE}{path}", headers=headers, json=body)
+        except httpx.HTTPError as exc:
+            raise HTTPException(503, f"Falha ao contatar Mercado Pago: {exc}") from exc
+    if r.status_code >= 400:
+        try:
+            detail = r.json()
+        except Exception:
+            detail = r.text
+        raise HTTPException(r.status_code, f"Mercado Pago: {detail}")
+    return r.json()
+
+
+async def _mp_get(token: str, path: str) -> dict:
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(timeout=20) as http:
+        try:
+            r = await http.get(f"{MP_API_BASE}{path}", headers=headers)
+        except httpx.HTTPError as exc:
+            raise HTTPException(503, f"Falha ao contatar Mercado Pago: {exc}") from exc
+    if r.status_code >= 400:
+        raise HTTPException(r.status_code, f"Mercado Pago: {r.text}")
+    return r.json()
+
+
+@api.post("/stores/{store_id}/mercadopago/setup")
+async def mp_setup(store_id: str, body: MercadoPagoSetup, user: dict[str, Any] = Depends(current_user)):
+    """Cliente/admin cadastra o Access Token do Mercado Pago (guardado criptografado)."""
+    await get_store(store_id, user)
+    encrypted = fernet.encrypt(body.access_token.encode()).decode()
+    await db.stores.update_one({"id": store_id}, {"$set": {
+        "mp_token_enc": encrypted,
+        "mp_environment": body.ambiente,
+    }})
+    return {"ok": True, "ambiente": body.ambiente, "message": "Token Mercado Pago salvo."}
+
+
+@api.delete("/stores/{store_id}/mercadopago", status_code=204)
+async def mp_remove(store_id: str, user: dict[str, Any] = Depends(current_user)):
+    await get_store(store_id, user)
+    await db.stores.update_one({"id": store_id}, {"$unset": {"mp_token_enc": ""}})
+
+
+@api.get("/stores/{store_id}/mercadopago")
+async def mp_status(store_id: str, user: dict[str, Any] = Depends(current_user)):
+    store = await get_store(store_id, user)
+    return {
+        "configured": bool(store.get("mp_token_enc")),
+        "ambiente": store.get("mp_environment", "producao"),
+    }
+
+
+@api.post("/stores/{store_id}/mercadopago/pix", status_code=201)
+async def mp_criar_pix(store_id: str, body: MercadoPagoPix, user: dict[str, Any] = Depends(current_user)):
+    """Cria uma cobrança PIX. Retorna copia-e-cola + QR code base64."""
+    store = await get_store(store_id, user)
+    token = mp_token_for(store)
+    referencia = body.referencia_externa or uuid.uuid4().hex
+    payload = {
+        "transaction_amount": round(body.valor, 2),
+        "description": body.descricao,
+        "payment_method_id": "pix",
+        "payer": {"email": body.email_pagador},
+        "external_reference": referencia,
+    }
+    data = await _mp_post(token, "/v1/payments", payload, idem=referencia)
+    td = data.get("point_of_interaction", {}).get("transaction_data", {})
+    await db.payments.insert_one({
+        "id": uuid.uuid4().hex,
+        "store_id": store_id,
+        "mp_id": str(data.get("id")),
+        "tipo": "pix",
+        "status": data.get("status"),
+        "valor": body.valor,
+        "referencia_externa": referencia,
+        "created_at": now().isoformat(),
+    })
+    return {
+        "id": data.get("id"),
+        "status": data.get("status"),
+        "copia_e_cola": td.get("qr_code"),
+        "qr_code_base64": td.get("qr_code_base64"),
+        "ticket_url": td.get("ticket_url"),
+        "referencia": referencia,
+    }
+
+
+@api.post("/stores/{store_id}/mercadopago/checkout", status_code=201)
+async def mp_criar_checkout(store_id: str, body: MercadoPagoCheckout, user: dict[str, Any] = Depends(current_user)):
+    """Cria uma preference (Checkout Pro). Retorna init_point pra redirecionar o cliente."""
+    store = await get_store(store_id, user)
+    token = mp_token_for(store)
+    referencia = body.referencia_externa or uuid.uuid4().hex
+    payload = {
+        "items": [
+            {"title": i.titulo, "quantity": i.quantidade, "unit_price": round(i.preco_unitario, 2), "currency_id": "BRL"}
+            for i in body.itens
+        ],
+        "external_reference": referencia,
+    }
+    if body.email_pagador:
+        payload["payer"] = {"email": body.email_pagador}
+    data = await _mp_post(token, "/checkout/preferences", payload, idem=referencia)
+    await db.payments.insert_one({
+        "id": uuid.uuid4().hex,
+        "store_id": store_id,
+        "mp_id": str(data.get("id")),
+        "tipo": "checkout",
+        "status": "pending",
+        "referencia_externa": referencia,
+        "created_at": now().isoformat(),
+    })
+    return {
+        "id": data.get("id"),
+        "init_point": data.get("init_point"),
+        "sandbox_init_point": data.get("sandbox_init_point"),
+        "referencia": referencia,
+    }
+
+
+@api.get("/stores/{store_id}/mercadopago/pagamentos")
+async def mp_list_payments(store_id: str, user: dict[str, Any] = Depends(current_user)):
+    await get_store(store_id, user)
+    docs = await db.payments.find({"store_id": store_id}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return docs
+
+
+@api.post("/webhooks/mercadopago/{store_id}")
+async def mp_webhook(store_id: str, request: Request):
+    """Recebe notificações do Mercado Pago (Webhook JSON ou IPN query)."""
+    store = await db.stores.find_one({"id": store_id})
+    if not store or not store.get("mp_token_enc"):
+        return {"received": False, "reason": "store_not_configured"}
+    payload = {}
+    if request.headers.get("content-type", "").startswith("application/json"):
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+    topic = payload.get("type") or request.query_params.get("topic") or request.query_params.get("type")
+    mp_id = str(
+        (payload.get("data") or {}).get("id")
+        or request.query_params.get("data.id")
+        or request.query_params.get("id")
+        or ""
+    )
+    if topic == "payment" and mp_id:
+        try:
+            token = fernet.decrypt(store["mp_token_enc"].encode()).decode()
+            info = await _mp_get(token, f"/v1/payments/{mp_id}")
+        except Exception:
+            return {"received": True, "note": "sem_token_valido"}
+        await db.payments.update_one(
+            {"store_id": store_id, "mp_id": mp_id},
+            {"$set": {
+                "status": info.get("status"),
+                "status_detail": info.get("status_detail"),
+                "updated_at": now().isoformat(),
+            }},
+            upsert=True,
+        )
+    return {"received": True}
+
+
 # ============================================================ app bootstrap
 
 app = FastAPI(title="ZapPedidos API")
@@ -781,6 +992,7 @@ async def startup():
     await db.products.create_index([("store_id", 1), ("id", 1)])
     await db.orders.create_index([("store_id", 1), ("created_at", -1)])
     await db.chats.create_index([("store_id", 1), ("created_at", -1)])
+    await db.payments.create_index([("store_id", 1), ("mp_id", 1)])
     await db.login_attempts.create_index("email", unique=True)
     # Migração dos campos legados waha_* → wa_*
     await db.stores.update_many(
