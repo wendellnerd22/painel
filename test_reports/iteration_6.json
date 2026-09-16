@@ -1,0 +1,31 @@
+{
+  "summary": "Iter 6 - Mercado Pago per-store integration + client panel isolation. Backend: 29/29 pytest tests PASS (13 new MP tests + 16 iter4 regression). Frontend: MP block on Settings verified end-to-end as admin AND as newly created cliente. All 13 MP scenarios cover: default status=not configured, /pix and /checkout without token => 400 with clear message, setup encrypts token (never returned, exposes only has_mp_token=true on GET /stores/{id}), /pix and /checkout with invalid dummy token forward MP 401 (no 500), /pagamentos returns list, webhook returns 200 for all cases (no body, unknown store, payment topic with bad token), DELETE removes token, cross-tenant setup returns 404, dashboard + list never leak mp_token_enc. Frontend flow: admin login -> Configurações -> Mercado Pago badge 'Não configurado' -> fill TEST- token + select ambiente 'teste' -> Salvar -> badge becomes 'Configurado · teste' + Testar PIX and Remover buttons appear -> Testar PIX with invalid token returned 401 gracefully (no crash, no pix-test-result rendered) -> Remover confirms and badge returns to 'Não configurado'. Client login (created via admin) sees ONLY own store in selector, full menu (Meu painel, Catálogo, Conectar WhatsApp, Pedidos, Conversas, Configurações), and MP block with all data-testids. Cookie httpOnly zp_session working. All iter4 regressions still pass (brute-force lockout, plan limits, LAD blocking, WA offline graceful, tenant isolation, webhook chats).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mercadopago_iter6.py",
+    "/app/backend/tests/test_zappedidos_iter4.py",
+    "/app/test_reports/pytest/iteration6.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "clean() and LEGACY_SECRET_PROJ correctly strip mp_token_enc from all responses; store_detail exposes derived has_mp_token=true — safe pattern.",
+    "MP _mp_post/_mp_get wrap httpx.HTTPError into HTTPException 503 and forward MP status codes verbatim; no 500 leaks. Good.",
+    "Fernet key comes from TOKEN_ENCRYPTION_KEY env var; falls back to Fernet.generate_key() only if unset — acceptable but note that if env var is ever cleared, existing encrypted tokens become undecryptable (400/500 on decrypt). Recommend logging a warning at startup if key was auto-generated.",
+    "MercadoPagoPix.email_pagador is a plain str (not EmailStr); acceptable for MP payload but consider EmailStr to reject malformed early.",
+    "server.py now ~1027 lines — the earlier refactor recommendation stands: split providers (WA/LAD/MP) into routers when adding more features.",
+    "Webhook mp_webhook: when decrypt fails it silently returns received=true — consider logging so ops can spot key rotation issues."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mercadopago_iter6.py",
+    "/app/test_reports/pytest/iteration6.xml",
+    "/app/test_reports/iteration_6.json"
+  ],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "100% (admin + client MP flows verified)"},
+  "test_credentials": "admin@zappedidos.com / Zap@2026 (client accounts created ad-hoc via POST /api/stores and cleaned up)",
+  "seed_data_creation": "All TEST-prefixed stores and 'UI Test Store' created during frontend testing were deleted at the end of the run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 6 stable. MP integration fully covered via REST httpx (no SDK). Use TEST-<any> tokens to exercise MP without hitting real prod; MP returns 401 which is forwarded. For UI regression, the seletor de loja no topo mostra somente lojas do usuário logado (admin sees all, client sees own). data-testids on Settings MP block: mp-badge, mp-token-input, mp-env-select, save-mp-token, test-pix-button, remove-mp-button, pix-test-result. If new MP features are added (recorrência, split, etc.) add cases to test_mercadopago_iter6.py.",
+  "rca of the issue": "N/A - no failures found."
+}
