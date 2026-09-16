@@ -1,0 +1,50 @@
+{
+  "typography": {
+    "heading": "Cabinet Grotesk, Outfit, sans-serif",
+    "body": "Inter, DM Sans, sans-serif",
+    "weights": {
+      "light": "300",
+      "regular": "400",
+      "medium": "500",
+      "bold": "700",
+      "black": "900"
+    }
+  },
+  "colors": {
+    "primary": "#6366F1",
+    "primary_hover": "#4F46E5",
+    "background_dark": "#0B0F17",
+    "background_card": "#131C2E",
+    "border_color": "#1E293B",
+    "text_main": "#F8FAFC",
+    "text_muted": "#94A3B8",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444"
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-slate-900/80 border border-slate-800",
+    "shadows": "shadow-[0_8px_32px_rgba(0,0,0,0.37)]",
+    "border_radius": "rounded-xl",
+    "glow": "ring-2 ring-indigo-500/20"
+  },
+  "component_path": "/app/frontend/src/components",
+  "instructions_to_main_agent": "Build a comprehensive SaaS multi-tenant platform for WhatsApp Waha bot reseller management. Support three distinct roles: Master Admin, Reseller, and End Client. Features include: Global reseller stats, client store management, plan quotas, WhatsApp Waha instance provisioning & QR pairing, catalog/product management, live connection status monitor, and clear status indicators for unconfigured external Waha nodes.",
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Every interactive and key informational element MUST include a data-testid attribute.",
+    "Do not use transparent background in headers without blur.",
+    "Use clean modern Tailwind styling with high contrast and smooth micro-interactions.",
+    "Ensure all three roles have dedicated dashboards with intuitive navigation and live state polling."
+  ],
+  "image_urls": {
+    "whatsapp_banner": "https://images.unsplash.com/photo-1611746872915-64382b5c76da?auto=format&fit=crop&w=1200&q=80",
+    "dashboard_hero": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+    "bot_avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=400&q=80"
+  },
+  "three_d_libraries": [],
+  "accessibility": {
+    "contrast_ratio": "minimum 4.5:1 for text",
+    "keyboard_navigation": "fully supported",
+    "reduced_motion": "respected via CSS media queries"
+  }
+}

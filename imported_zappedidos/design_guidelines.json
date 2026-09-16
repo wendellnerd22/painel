@@ -1,0 +1,257 @@
+{
+  "theme": "dark",
+  "archetype": "THE PERFORMANCE PRO / HIGH-TECH SAAS HYBRID",
+  "typography": {
+    "font_family_heading": "Plus Jakarta Sans Variable, sans-serif",
+    "font_family_body": "DM Sans Variable, sans-serif",
+    "font_family_mono": "JetBrains Mono Variable, monospace",
+    "scale_px": {
+      "display": 56,
+      "h1": 44,
+      "h2": 32,
+      "h3": 24,
+      "h4": 18,
+      "body": 15,
+      "caption": 13
+    },
+    "letter_spacing": {
+      "heading": "-0.03em",
+      "body": "0em",
+      "mono_label": "0.08em"
+    }
+  },
+  "colors": {
+    "surfaces": [
+      {
+        "name": "page",
+        "kind": "solid",
+        "bg": "#0B0F17",
+        "on_bg": "#F1F5F9",
+        "on_bg_muted": "#94A3B8",
+        "roles": {
+          "link": "#25D366",
+          "error": "#F87171",
+          "success": "#4ADE80",
+          "warning": "#FBBF24"
+        }
+      },
+      {
+        "name": "panel",
+        "kind": "solid",
+        "bg": "#111827",
+        "on_bg": "#F9FAFB",
+        "on_bg_muted": "#9CA3AF",
+        "roles": {
+          "link": "#22C55E",
+          "error": "#EF4444",
+          "success": "#10B981",
+          "warning": "#F59E0B"
+        }
+      },
+      {
+        "name": "panel_secondary",
+        "kind": "solid",
+        "bg": "#1E293B",
+        "on_bg": "#FFFFFF",
+        "on_bg_muted": "#CBD5E1",
+        "roles": {
+          "border": "#334155"
+        }
+      },
+      {
+        "name": "chat_canvas",
+        "kind": "solid",
+        "bg": "#0D1418",
+        "on_bg": "#E9EDEF",
+        "on_bg_muted": "#8696A0",
+        "roles": {
+          "doodle_subtle": "#111B21"
+        }
+      },
+      {
+        "name": "chat_bubble_bot",
+        "kind": "solid",
+        "bg": "#005C4B",
+        "on_bg": "#FFFFFF",
+        "on_bg_muted": "#A7F3D0",
+        "roles": {
+          "meta_time": "#6EE7B7"
+        }
+      },
+      {
+        "name": "chat_bubble_user",
+        "kind": "solid",
+        "bg": "#202C33",
+        "on_bg": "#E9EDEF",
+        "on_bg_muted": "#8696A0",
+        "roles": {
+          "meta_time": "#8696A0"
+        }
+      },
+      {
+        "name": "chat_tool_chip",
+        "kind": "solid",
+        "bg": "#182229",
+        "on_bg": "#38BDF8",
+        "on_bg_muted": "#7DD3FC",
+        "roles": {
+          "icon": "#38BDF8"
+        }
+      },
+      {
+        "name": "glass_header",
+        "kind": "glass",
+        "contrast_against": "#0B0F17",
+        "guarantee": "backdrop-blur-xl bg-[#0B0F17]/85 border-b border-white/10",
+        "on_bg": "#F8FAFC",
+        "on_bg_muted": "#94A3B8",
+        "roles": {
+          "brand": "#25D366"
+        }
+      },
+      {
+        "name": "order_status_E_pendente",
+        "kind": "solid",
+        "bg": "#3B2505",
+        "on_bg": "#FDE68A",
+        "on_bg_muted": "#F59E0B"
+      },
+      {
+        "name": "order_status_A_autorizado",
+        "kind": "solid",
+        "bg": "#063047",
+        "on_bg": "#BAE6FD",
+        "on_bg_muted": "#38BDF8"
+      },
+      {
+        "name": "order_status_V_em_preparo",
+        "kind": "solid",
+        "bg": "#371A45",
+        "on_bg": "#F5D0FE",
+        "on_bg_muted": "#C084FC"
+      },
+      {
+        "name": "order_status_X_saiu_entrega",
+        "kind": "solid",
+        "bg": "#064E3B",
+        "on_bg": "#A7F3D0",
+        "on_bg_muted": "#34D399"
+      },
+      {
+        "name": "order_status_D_entregue",
+        "kind": "solid",
+        "bg": "#065F46",
+        "on_bg": "#D1FAE5",
+        "on_bg_muted": "#6EE7B7"
+      },
+      {
+        "name": "order_status_P_aguardando_pagamento",
+        "kind": "solid",
+        "bg": "#451A03",
+        "on_bg": "#FED7AA",
+        "on_bg_muted": "#FB923C"
+      },
+      {
+        "name": "order_status_C_cancelado",
+        "kind": "solid",
+        "bg": "#450A0A",
+        "on_bg": "#FECACA",
+        "on_bg_muted": "#F87171"
+      },
+      {
+        "name": "order_status_R_rejeitado",
+        "kind": "solid",
+        "bg": "#3F1515",
+        "on_bg": "#FEE2E2",
+        "on_bg_muted": "#EF4444"
+      }
+    ],
+    "accent": "#25D366",
+    "on_accent": "#042F13",
+    "accent_secondary": "#10B981",
+    "on_accent_secondary": "#022C22",
+    "borders": {
+      "subtle": "#1F2937",
+      "medium": "#374151",
+      "highlight": "#25D366"
+    }
+  },
+  "entry_surfaces": {
+    "/": "dark SaaS dashboard split layout — top stat hero & store health banner, followed by multi-store card grid, quick actions and WhatsApp AI simulator drawer"
+  },
+  "lad_order_status_mapping": {
+    "E": { "label": "Pendente", "badge_bg": "#3B2505", "text": "#FDE68A", "border": "#D97706" },
+    "A": { "label": "Autorizado", "badge_bg": "#063047", "text": "#BAE6FD", "border": "#0284C7" },
+    "V": { "label": "Em Preparo", "badge_bg": "#371A45", "text": "#F5D0FE", "border": "#9333EA" },
+    "X": { "label": "Saiu p/ Entrega", "badge_bg": "#064E3B", "text": "#A7F3D0", "border": "#059669" },
+    "D": { "label": "Entregue", "badge_bg": "#065F46", "text": "#D1FAE5", "border": "#10B981" },
+    "P": { "label": "Aguardando Pagamento", "badge_bg": "#451A03", "text": "#FED7AA", "border": "#EA580C" },
+    "C": { "label": "Cancelado", "badge_bg": "#450A0A", "text": "#FECACA", "border": "#DC2626" },
+    "R": { "label": "Rejeitado", "badge_bg": "#3F1515", "text": "#FEE2E2", "border": "#B91C1C" }
+  },
+  "grids_and_layouts": {
+    "app_shell": "fixed top nav with glassmorphism + left collapsible sidebar (Lojas, Simulador Chat, Conexão WhatsApp, Configurações de Revenda, Logs LAD API) + main dynamic content area",
+    "store_list_grid": "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6",
+    "store_detail_tabs_layout": "tabbed interface: [Visão Geral / API LAD], [Cardápio em Tempo Real], [Pedidos do Bot], [Simulador Live], [Configurações do Bot & Webhook]",
+    "chat_simulator_layout": "dual-column split: left column = phone mock screen (390px WhatsApp Dark UI), right column = Bot Thought/Tool Execution Inspector (showing LAD API payloads: /v1/cardapio, /v1/frete, /v1/pedidos with latency & tokens)"
+  },
+  "motion": {
+    "chat_bubble_entrance": "initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.22, ease: 'easeOut' }}",
+    "typing_indicator_dots": "staggered pulse animation across 3 dots (0.6s infinite ease-in-out)",
+    "tool_chip_glow": "pulse border glow while AI executes LAD endpoint call",
+    "card_hover": "hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.4)] transition duration-200"
+  },
+  "accessibility": {
+    "apca_contrast": "All text tokens strictly achieve >= 4.5:1 against respective panel, dark canvas and status badge backgrounds",
+    "motion_preference": "Respects prefers-reduced-motion: reduces chat bubble transitions and disables pulsing loops",
+    "keyboard_nav": "Full arrow and tab navigation on store lists, tabs, modals and chat inputs",
+    "data_testids": "Every interactive CTA, filter, tab, message bubble, store card, and modal action has explicit kebab-case data-testid"
+  },
+  "image_urls": {
+    "dashboard_hero_bg": {
+      "category": "Hero and background showcase",
+      "url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBkYXJrJTIwZGFzaGJvYXJkJTIwdGVjaG5vbG9neSUyMHNhYXN8ZW58MHx8fHwxNzg4OTMyNjk2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Dark performance analytics graph on screen for SaaS reseller metrics header"
+    },
+    "food_sample_banner": {
+      "category": "Store demo food graphics",
+      "url": "https://images.unsplash.com/photo-1615887087343-6a32f45f27a4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHw0fHxmb29kJTIwZGVsaXZlcnklMjBwaXp6YSUyMGJ1cmdlciUyMHJlc3RhdXJhbnR8ZW58MHx8fHwxNzg4OTMyNjk2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Artisanal food delivery box and pizza for restaurant preview card"
+    },
+    "burger_sample": {
+      "category": "Menu category product demo",
+      "url": "https://images.unsplash.com/photo-1551782450-17144efb9c50?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHwyfHxmb29kJTIwZGVsaXZlcnklMjBwaXp6YSUyMGJ1cmdlciUyMHJlc3RhdXJhbnR8ZW58MHx8fHwxNzg4OTMyNjk2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Gourmet burger with fries for LAD menu preview"
+    }
+  },
+  "component_structure": {
+    "AppHeader": "frontend/src/components/layout/AppHeader.tsx",
+    "AppSidebar": "frontend/src/components/layout/AppSidebar.tsx",
+    "StoreCard": "frontend/src/components/stores/StoreCard.tsx",
+    "StoreModal": "frontend/src/components/stores/StoreModal.tsx",
+    "StoreDetail": "frontend/src/components/stores/StoreDetail.tsx",
+    "StoreMenuViewer": "frontend/src/components/stores/StoreMenuViewer.tsx",
+    "OrdersTable": "frontend/src/components/orders/OrdersTable.tsx",
+    "WhatsAppSimulator": "frontend/src/components/chat/WhatsAppSimulator.tsx",
+    "ChatBubble": "frontend/src/components/chat/ChatBubble.tsx",
+    "ToolCallIndicator": "frontend/src/components/chat/ToolCallIndicator.tsx",
+    "WhatsAppConnection": "frontend/src/components/whatsapp/WhatsAppConnection.tsx",
+    "ResellerStats": "frontend/src/components/dashboard/ResellerStats.tsx"
+  },
+  "instructions_to_main_agent": [
+    "Build a production-grade Brazilian Portuguese SaaS dashboard + WhatsApp AI bot simulator for LAD Delivery v1 resale.",
+    "Dark mode by default: integrate Tailwind v4 theme in frontend/src/index.css with dark background #0B0F17 and WhatsApp green #25D366 highlights.",
+    "Support complete multi-tenant multi-store management: each store stores its LAD API token, name, phone, bot prompt, status (online/offline/token_error), and simulated/live order log.",
+    "Provide mock + live LAD Delivery v1 integration: GET /v1/loja, GET /v1/cardapio, POST /v1/frete, POST /v1/pedidos (with idempotencyKey), GET /v1/pedidos/{uuid} with all 8 color-coded statuses (E, A, V, X, D, P, C, R).",
+    "Build the WhatsApp Chat Simulator with authentic WhatsApp Web dark theme: wallpaper doodle background, green bot bubbles, gray customer bubbles, timestamp receipts (double blue check), typing indicator with animated dots, and tool call pill chips (e.g., '🤖 Executando: /v1/cardapio...', '📍 Calculando frete: /v1/frete...').",
+    "Integrate the Gemini 3 Flash LLM / bot simulation engine capable of autonomously picking items from the active store's menu, calculating CEP delivery fee via /v1/frete, confirming payment method from /v1/loja, and generating real order payloads.",
+    "Ensure all interactive elements have data-testid attributes for robust Playwright testing."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Never use generic centered layouts or flat gray backgrounds without visual hierarchy.",
+    "Use 2-3x generous spacing with crisp 1px borders (border-white/10 or border-slate-800) and backdrop blur.",
+    "All interactive elements must have hover and focus states with clear contrast.",
+    "Do not use emojis for icons: use Lucide React icons exclusively.",
+    "Use Sonner for toast notifications (toasts for token verified, order created, store saved)."
+  ]
+}

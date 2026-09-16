@@ -1,0 +1,70 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: zappedidos
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+  # WhatsApp (WAHA) — self-hosted, sessões ilimitadas de graça na versão Core.
+  # Depois de subir, escaneie o QR em http://localhost:3001 pra conectar o número.
+  waha:
+    image: devlikeapro/waha:latest
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - waha_sessions:/app/.sessions
+    environment:
+      WAHA_DASHBOARD_USERNAME: admin
+      WAHA_DASHBOARD_PASSWORD: 123456
+      WHATSAPP_SWAGGER_USERNAME: admin
+      WHATSAPP_SWAGGER_PASSWORD: 123456
+      WHATSAPP_API_KEY: ${WAHA_API_KEY:-}
+      WHATSAPP_HOOK_URL: http://backend:8001/api/webhooks/waha
+      WHATSAPP_HOOK_EVENTS: message
+
+  # Rastreamento de entrega — acesse http://localhost:8082 (admin/admin no primeiro login).
+  traccar:
+    image: traccar/traccar:latest
+    restart: unless-stopped
+    ports:
+      - "8082:8082"   # painel web
+      - "5055:5055"   # porta padrão de protocolo GPS (não usamos com o Traccar Client por HTTP, mas fica disponível)
+    volumes:
+      - traccar_data:/opt/traccar/data
+
+volumes:
+  mongo_data:
+  waha_sessions:
+  traccar_data:
