@@ -281,7 +281,16 @@ app.include_router(api)
 origins = [x.strip() for x in os.environ.get("CORS_ORIGINS", "").split(",") if x.strip() and x.strip() != "*"]
 if os.environ.get("FRONTEND_URL"):
     origins.append(os.environ["FRONTEND_URL"].rstrip("/"))
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=list(dict.fromkeys(origins)), allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=list(dict.fromkeys(origins)),
+    # The VPS may serve the frontend from a subdomain; HTTPS is mandatory here.
+    # Production installs should keep FRONTEND_URL explicit in CORS_ORIGINS.
+    allow_origin_regex=r"https://.*",
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
