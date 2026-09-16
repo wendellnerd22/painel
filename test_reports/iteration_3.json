@@ -1,0 +1,24 @@
+{
+  "summary": "Iteration 3 regression passed backend APIs and the primary mobile workflow: login/logout, store creation, explicit newly-created store selection, product creation, tenant-visible WAHA not-configured state, and CORS preflight.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Login", "issue": "A prior success notice (Produto salvo no catálogo) remains visible after logout and on the login screen because signOut does not clear notice state.", "selector": "[data-testid=notice]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_zappedidos_api.py", "/app/test_reports/pytest/iteration3.xml"],
+  "action_items": ["Clear notice state when logging out or when rendering the login screen."],
+  "critical_code_review_comments": ["Lockout implementation is present and source resets the failed-attempt count while setting a 15-minute lock; add this assertion to the reusable regression test if future changes touch auth."],
+  "updated_files": ["/app/test_reports/pytest/iteration3.xml", "/app/test_reports/iteration_3.json"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% core flow; 1 low UI finding"},
+  "seed_data_creation": "Created TEST UI Iter3 Store and test-ui-iter3@example.com with TEST UI Burger 3 via the UI; no seeded records modified.",
+  "retest_needed": false,
+  "should_call_test_agent_after_fix": false,
+  "context_for_next_testing_agent": "CORS preflight now returns 200 with allow-credentials and allowed origin. Explicit select_option by store label successfully routes product creation to the new store. Desktop was covered in prior iteration; this iteration covered mobile.",
+  "rca of the issue": "The stale notice is retained in Panel state across signOut; Login receives the same notice state and displays it as an error-style message. Clear notice in signOut or reset it when switching to unauthenticated state. The browser automation's final DOM error-evaluation helper had malformed JavaScript, but all functional assertions completed successfully."
+}

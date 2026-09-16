@@ -23,7 +23,7 @@ function Panel() {
   useEffect(() => { load(); }, []);
   useEffect(() => { if (selectedStore && page === "connection") api.get(`/stores/${selectedStore.id}/waha`).then((r) => setWahaState(r.data)); }, [selectedStore, page]);
   async function signIn(e) { e.preventDefault(); try { const r = await api.post("/auth/login", login); setUser(r.data); setNotice("Login realizado com sucesso"); load(); } catch { setNotice("Não foi possível entrar. Verifique os dados."); } }
-  async function signOut() { await api.post("/auth/logout"); setUser(false); }
+  async function signOut() { await api.post("/auth/logout"); setNotice(""); setUser(false); }
   async function addStore(e) { e.preventDefault(); try { await api.post("/stores", newStore); setNewStore({ nome: "", cliente_email: "", cliente_senha: "", plano: "Essencial" }); setNotice("Loja e acesso do cliente criados"); load(); } catch (error) { setNotice(error.response?.data?.detail || "Revise os dados da loja"); } }
   async function addProduct(e) { e.preventDefault(); await api.post(`/stores/${selectedStore.id}/products`, { ...product, preco: Number(product.preco) }); setProduct({ nome: "", descricao: "", preco: "", categoria: "Geral" }); setNotice("Produto salvo no catálogo"); }
   async function setupWaha(e) { e.preventDefault(); try { const r = await api.post(`/stores/${selectedStore.id}/waha/setup`, waha); setWahaState(r.data); setNotice(r.data.message); } catch { setNotice("Não foi possível salvar a conexão WAHA"); } }
