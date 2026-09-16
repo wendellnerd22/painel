@@ -1,0 +1,26 @@
+{
+  "summary": "Retest da iteração 5 após correções dos 2 bugs da iteração 4. Reexecutado /app/backend/tests/test_zappedidos_iter4.py contra o preview URL. 16/16 testes PASSARAM (100%). Ambas as correções foram validadas: (1) POST /api/stores/{id}/whatsapp/setup agora retorna 200 com status='error' quando o provider está offline (test_whatsapp_setup_and_qr_offline_graceful PASS); (2) GET /api/dashboard e GET /api/stores não expõem mais waha_token/evolution_token/wa_token/lad_token, mesmo em documentos legados (test_dashboard_uses_wa_status_migrated PASS). Todos os demais fluxos (login+cookie httpOnly, CRUD de stores/produtos, isolamento multi-tenant, plan-limit Essencial, PATCH restrito para client, LAD sem token, webhooks WAHA/Evolution agrupando chats, brute-force lockout após 5 falhas) continuam íntegros.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_zappedidos_iter4.py",
+    "/app/test_reports/pytest/iteration5.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Correção #1 (start_session) segue o mesmo padrão try/except httpx.HTTPError já usado em status()/get_qr()/logout() — consistente.",
+    "Correção #2 (projeção legada) — projeção agora exclui waha_token/waha_url/evolution_token além de wa_token/lad_token; clean() também remove wa_token. Consistente entre list e detail.",
+    "Recomendação de refactor de longo prazo continua válida: server.py cresceu ~830 linhas — considerar dividir em módulos providers/routers quando features expandirem. Não bloqueante."
+  ],
+  "updated_files": [
+    "/app/test_reports/pytest/iteration5.xml",
+    "/app/test_reports/iteration_5.json"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "admin@zappedidos.com / Zap@2026",
+  "seed_data_creation": "Stores TEST-prefixed criadas durante os testes e removidas pelo teardown do módulo.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend ZapPedidos está estável em iter5. Providers WhatsApp (WAHA/Evolution) e LAD mockados via base_url unreachable. Todos os endpoints críticos verificados. Próximos ciclos podem focar em UI/frontend ou em novas features.",
+  "rca of the issue": "N/A — bugs anteriores corrigidos e validados."
+}
