@@ -1,0 +1,82 @@
+# ZapPedidos — stack completa para VPS
+# --------------------------------------------------------------------------
+# Sobe: MongoDB, backend FastAPI, frontend (build estático via nginx),
+# WAHA (WhatsApp API self-hosted) e Evolution API (fallback anti-ban).
+# Cada instância WhatsApp roda no mesmo host; o cliente escolhe qual provider
+# usar no painel (URL + token). Portas expostas: 80 (painel), 8001 (API),
+# 3001 (dashboard WAHA), 8080 (Evolution manager).
+# --------------------------------------------------------------------------
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks: [zapnet]
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: zappedidos
+      CORS_ORIGINS: ${FRONTEND_URL:-http://localhost}
+      LAD_BASE_URL: https://api2.laddelivery.com.br
+    depends_on: [mongo]
+    ports: ["8001:8001"]
+    networks: [zapnet]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_BACKEND_URL: ${FRONTEND_URL:-http://localhost}
+    restart: unless-stopped
+    depends_on: [backend]
+    ports: ["80:80"]
+    networks: [zapnet]
+
+  # WAHA — WhatsApp HTTP API. Dashboard em http://SEUIP:3001
+  # Cada loja cria sua session dentro da mesma instância WAHA.
+  waha:
+    image: devlikeapro/waha:latest
+    restart: unless-stopped
+    ports: ["3001:3000"]
+    volumes:
+      - waha_sessions:/app/.sessions
+    environment:
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USER:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASS:-changeme}
+      WHATSAPP_API_KEY: ${WAHA_API_KEY:-troque-esta-chave}
+      WHATSAPP_HOOK_EVENTS: message
+    networks: [zapnet]
+
+  # Evolution API — alternativa anti-ban baseada em Baileys.
+  # Manager UI: http://SEUIP:8080  · API: http://SEUIP:8080
+  evolution:
+    image: atendai/evolution-api:latest
+    restart: unless-stopped
+    ports: ["8080:8080"]
+    depends_on: [mongo]
+    volumes:
+      - evolution_instances:/evolution/instances
+    environment:
+      SERVER_URL: ${EVOLUTION_URL:-http://localhost:8080}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-troque-esta-chave}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: mongodb
+      DATABASE_CONNECTION_URI: mongodb://mongo:27017/evolution
+      DEL_INSTANCE: "false"
+      QRCODE_LIMIT: "30"
+    networks: [zapnet]
+
+volumes:
+  mongo_data:
+  waha_sessions:
+  evolution_instances:
+
+networks:
+  zapnet:
