@@ -136,9 +136,22 @@ async def health():
 
 @api.post("/auth/login")
 async def login(body: Login, response: Response):
-    user = await db.users.find_one({"email": body.email.strip().lower()})
+    email = body.email.strip().lower()
+    attempt = await db.login_attempts.find_one({"email": email})
+    if attempt and attempt.get("locked_until"):
+        locked_until = datetime.fromisoformat(attempt["locked_until"])
+        if locked_until > now():
+            raise HTTPException(429, "Muitas tentativas. Aguarde alguns minutos.")
+    user = await db.users.find_one({"email": email})
     if not user or not verify_password(body.senha, user["password_hash"]):
+        count = (attempt or {}).get("count", 0) + 1
+        update: dict[str, Any] = {"count": count, "last_attempt": now().isoformat()}
+        if count >= 5:
+            update["count"] = 0
+            update["locked_until"] = (now() + timedelta(minutes=15)).isoformat()
+        await db.login_attempts.update_one({"email": email}, {"$set": update}, upsert=True)
         raise HTTPException(401, "E-mail ou senha inválidos")
+    await db.login_attempts.delete_one({"email": email})
     response.set_cookie(TOKEN_COOKIE, token_for(user), httponly=True, samesite="lax", max_age=604800, path="/")
     return public_user(user)
 
@@ -265,16 +278,22 @@ async def waha_test(store_id: str, user: dict[str, Any] = Depends(current_user))
 
 app = FastAPI(title="ZapPedidos API")
 app.include_router(api)
-origins = [x.strip() for x in os.environ.get("CORS_ORIGINS", "").split(",") if x.strip()]
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=origins or ["*"], allow_methods=["*"], allow_headers=["*"])
+origins = [x.strip() for x in os.environ.get("CORS_ORIGINS", "").split(",") if x.strip() and x.strip() != "*"]
+if os.environ.get("FRONTEND_URL"):
+    origins.append(os.environ["FRONTEND_URL"].rstrip("/"))
+app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=list(dict.fromkeys(origins)), allow_methods=["*"], allow_headers=["*"])
 
 
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
     await db.stores.create_index("id", unique=True)
-    if not await db.users.find_one({"email": ADMIN_EMAIL.lower()}):
+    await db.login_attempts.create_index("email", unique=True)
+    existing = await db.users.find_one({"email": ADMIN_EMAIL.lower()})
+    if not existing:
         await db.users.insert_one({"id": uuid.uuid4().hex, "email": ADMIN_EMAIL.lower(), "nome": "Administrador Geral", "role": "admin", "password_hash": hash_password(ADMIN_PASSWORD), "created_at": now().isoformat()})
+    elif not verify_password(ADMIN_PASSWORD, existing.get("password_hash", "")):
+        await db.users.update_one({"email": ADMIN_EMAIL.lower()}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD), "role": "admin"}})
 
 
 @app.on_event("shutdown")
