@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 4 backend regression covering the expanded ZapPedidos backend (WhatsApp unified WAHA/Evolution provider, LAD Delivery endpoints, product CRUD, webhook->chats, multi-tenant isolation, plan limits, brute-force lockout). 14/16 tests passed; 2 real backend bugs identified.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/stores/{id}/whatsapp/setup",
+        "issue": "Returns HTTP 500 when the configured WAHA/Evolution provider URL is offline/unreachable. WhatsAppProvider.start_session() executes httpx.post() outside any try/except, so httpx.ConnectError propagates. Review checklist explicitly required graceful handling here. get_qr() and status() are wrapped in try/except but start_session() is NOT. Reproduce: setup with base_url=http://127.0.0.1:59999 -> 500 + httpx.ConnectError in backend.err.log.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/dashboard and GET /api/stores",
+        "issue": "MongoDB projection only excludes wa_token and lad_token but not the legacy secret fields waha_token / evolution_token. Stores migrated from previous iterations still expose waha_token in the response. Extend projection (or clean() helper) to include waha_token, waha_url, evolution_token."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_zappedidos_iter4.py",
+    "/app/test_reports/pytest/iteration4.xml"
+  ],
+  "action_items": [
+    "Wrap httpx calls inside WhatsAppProvider.start_session() with try/except httpx.HTTPError returning {status: 'error', message: ...}, mirroring get_qr()/status()/logout(). This is the primary fix.",
+    "Extend the .find() projection in /api/dashboard and /api/stores (and clean() helper) to strip legacy waha_token / waha_url / evolution_token fields for backwards compatibility with pre-migration documents."
+  ],
+  "critical_code_review_comments": [
+    "WhatsAppProvider.start_session() lacks the try/except that the other three methods have — inconsistent and directly caused a 500 in tests.",
+    "clean() strips waha_token from single-doc responses but the store-list endpoints rely on MongoDB projection which misses legacy keys. Preferring clean() over projection for list endpoints would guarantee consistency.",
+    "server.py is one 811-line file; consider splitting providers/routers into modules once feature growth continues (soft rec).",
+    "PATCH /api/stores/{id}: when a client sends only disallowed fields the endpoint silently returns 200 with no change — consider returning 400 to give a clearer signal (currently tested to pass since bot_ativo is included).",
+    "Login endpoint sets cookie with secure=True unconditionally; fine for the preview HTTPS environment but would break local HTTP dev."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_zappedidos_iter4.py",
+    "/app/test_reports/pytest/iteration4.xml",
+    "/app/test_reports/iteration_4.json"
+  ],
+  "success_rate": {"backend": "87.5% (14/16)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "admin@zappedidos.com / Zap@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created several TEST-prefixed stores + client users during the run and cleaned them up in the module teardown fixture (deletes any store whose name starts with 'TEST').",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After main agent wraps start_session() in try/except and updates the store list projection, re-run pytest /app/backend/tests/test_zappedidos_iter4.py. The two currently failing tests are test_dashboard_uses_wa_status_migrated and test_whatsapp_setup_and_qr_offline_graceful. Cookie zp_session works with requests.Session across the preview URL. Webhook endpoint accepts both WAHA (from/body/fromMe) and Evolution (key.remoteJid, message.conversation) payload shapes correctly.",
+  "rca of the issue": "Root cause #1 (500 on setup): server.py line 200 — start_session() calls httpx.post directly; no exception wrapper. Fix: mirror status()/get_qr() pattern with try/except httpx.HTTPError returning {'status':'error','message':str(exc)}. Root cause #2 (waha_token leak): server.py lines 400 & 418 — projection dict only lists wa_token/lad_token. Legacy documents created before the wa_* rename still contain waha_token. Either extend the projection to {'waha_token':0,'waha_url':0,'evolution_token':0} or route the results through clean()."
+}

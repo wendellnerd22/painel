@@ -48,7 +48,7 @@ def clean(doc: Optional[dict[str, Any]]) -> dict[str, Any]:
     if not doc:
         return {}
     doc = dict(doc)
-    for secret in ("_id", "password_hash", "waha_token", "evolution_token", "lad_token"):
+    for secret in ("_id", "password_hash", "wa_token", "waha_token", "evolution_token", "lad_token"):
         doc.pop(secret, None)
     return doc
 
@@ -178,35 +178,36 @@ class WhatsAppProvider:
 
     async def start_session(self) -> dict[str, Any]:
         """Cria/inicia a sessão. Retorna dict com status e mensagem legível."""
-        async with httpx.AsyncClient(timeout=15) as http:
-            if self.provider == "evolution":
-                # POST /instance/create — se já existe, apenas conecta
+        try:
+            async with httpx.AsyncClient(timeout=15) as http:
+                if self.provider == "evolution":
+                    r = await http.post(
+                        f"{self.base}/instance/create",
+                        headers=self._headers(),
+                        json={
+                            "instanceName": self.session,
+                            "qrcode": True,
+                            "integration": "WHATSAPP-BAILEYS",
+                        },
+                    )
+                    if r.status_code in (403, 409):
+                        return {"status": "qr_pending", "message": "Instância já existente. Buscando QR code..."}
+                    if r.status_code >= 400:
+                        return {"status": "error", "message": f"Evolution respondeu {r.status_code}: {r.text[:200]}"}
+                    return {"status": "qr_pending", "message": "Instância criada. Escaneie o QR code."}
+                # WAHA
                 r = await http.post(
-                    f"{self.base}/instance/create",
+                    f"{self.base}/api/sessions",
                     headers=self._headers(),
-                    json={
-                        "instanceName": self.session,
-                        "qrcode": True,
-                        "integration": "WHATSAPP-BAILEYS",
-                    },
+                    json={"name": self.session, "start": True},
                 )
-                if r.status_code in (403, 409):
-                    # instância já existe → prossegue para /connect
-                    return {"status": "qr_pending", "message": "Instância já existente. Buscando QR code..."}
+                if r.status_code in (409, 422):
+                    return {"status": "qr_pending", "message": "Sessão já existente. Buscando QR code..."}
                 if r.status_code >= 400:
-                    return {"status": "error", "message": f"Evolution respondeu {r.status_code}: {r.text[:200]}"}
-                return {"status": "qr_pending", "message": "Instância criada. Escaneie o QR code."}
-            # WAHA
-            r = await http.post(
-                f"{self.base}/api/sessions",
-                headers=self._headers(),
-                json={"name": self.session, "start": True},
-            )
-            if r.status_code in (409, 422):
-                return {"status": "qr_pending", "message": "Sessão já existente. Buscando QR code..."}
-            if r.status_code >= 400:
-                return {"status": "error", "message": f"WAHA respondeu {r.status_code}: {r.text[:200]}"}
-            return {"status": "qr_pending", "message": "Sessão iniciada. Escaneie o QR code."}
+                    return {"status": "error", "message": f"WAHA respondeu {r.status_code}: {r.text[:200]}"}
+                return {"status": "qr_pending", "message": "Sessão iniciada. Escaneie o QR code."}
+        except httpx.HTTPError as exc:
+            return {"status": "error", "message": f"Provider offline: {exc}"}
 
     async def get_qr(self) -> dict[str, Any]:
         """Retorna { qr: 'data:image/png;base64,...' } ou { qr: None, message }"""
@@ -351,6 +352,9 @@ async def ensure_plan_limit(client_id: str, plano: str):
 
 # ============================================================ endpoints
 
+LEGACY_SECRET_PROJ = {"_id": 0, "wa_token": 0, "lad_token": 0, "waha_token": 0, "evolution_token": 0}
+
+
 @api.get("/")
 async def root():
     return {"message": "ZapPedidos API", "status": "online"}
@@ -397,7 +401,7 @@ async def me(user: dict[str, Any] = Depends(current_user)):
 @api.get("/dashboard")
 async def dashboard(user: dict[str, Any] = Depends(current_user)):
     query = {} if user.get("role") in {"admin", "reseller"} else {"client_id": user["id"]}
-    stores = await db.stores.find(query, {"_id": 0, "wa_token": 0, "lad_token": 0}).to_list(500)
+    stores = await db.stores.find(query, LEGACY_SECRET_PROJ).to_list(500)
     connected = sum(1 for s in stores if s.get("wa_status") == "connected")
     return {
         "lojas": stores,
@@ -415,7 +419,7 @@ async def plans(_: dict[str, Any] = Depends(current_user)):
 @api.get("/stores")
 async def stores(user: dict[str, Any] = Depends(current_user)):
     query = {} if user.get("role") in {"admin", "reseller"} else {"client_id": user["id"]}
-    docs = await db.stores.find(query, {"_id": 0, "wa_token": 0, "lad_token": 0}).sort("created_at", -1).to_list(500)
+    docs = await db.stores.find(query, LEGACY_SECRET_PROJ).sort("created_at", -1).to_list(500)
     return docs
 
 
